@@ -63,7 +63,8 @@ const util = {
 }
 
 // parse query parameters
-const params = util.parseurl(document.location.href, {t:"5.0", c:"15.0", m:"rb", lat:"36.42", lng:"136.07", z:"6"})
+//const params = util.parseurl(document.location.href, {t:"5.0", c:"15.0", m:"rb", lat:"36.42", lng:"136.07", z:"6"})
+const params = util.parseurl(document.location.href, {t:"5.0", c:"3776.0", m:"rb", lat:"36.42", lng:"136.07", z:"6"})
 
 // dif layer (10B - 5A)
 const l_dif510 = L.GridLayer.extend({
@@ -93,7 +94,7 @@ const l_dif510 = L.GridLayer.extend({
         const d  = new Uint8ClampedArray(4*ctx.width*ctx.height)
         for(let os=0; os<d.length; os+=4){
           const [h0, h1] = [util.rgb2h(d0[os], d0[os + 1], d0[os + 2]), util.rgb2h(d1[os], d1[os + 1], d1[os + 2])]
-          const g = util.h2gray(h1, 3776)
+          const g = util.h2gray(h1, cl)
           d[os+0] = h1?g:0
           d[os+1] = h1?g:128
           d[os+2] = h1?g:0
