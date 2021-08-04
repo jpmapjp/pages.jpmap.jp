@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
+    <title>leaflet</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
+    <style>
+        body { margin:0; padding:0; }
+        body, table, tr, td, th, div, h1, h2, input { font-family: monospace, serif; font-size: 11pt; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+        img.leaflet-tile { image-rendering: pixelated }
+    </style>
+</head>
+
+<body>
+<div id="map"></div>
+<textarea id="clip"></textarea>
+
+<script>
+// utils
+const util = {
+  latlng2m3: p => {
+    const x = p.lat * 3 / 2
+    const y = p.lng - 100
+    const m1x = Math.floor(x)
+    const m1y = Math.floor(y)
+    const m2x = Math.floor((x - m1x) * 8)
+    const m2y = Math.floor((y - m1y) * 8)
+    const m3x = Math.floor((x - m1x - m2x/8) * 80)
+    const m3y = Math.floor((y - m1y - m2y/8) * 80)
+    return String(m1x).padStart(2, "0") + String(m1y).padStart(2, "0") + m2x + m2y + m3x + m3y
+  },
+  m3tolatlng: m => ({
+    lat: parseInt(m.substr(0, 2))*2/3 + parseInt(m.substr(4,1))/12 + parseInt(m.substr(6,1))/120,
+    lng: parseInt(m.substr(2, 2))+100 + parseInt(m.substr(5,1))/8  + parseInt(m.substr(7,1))/80
+  }),
+  clamp: (val, min, max) => Math.max(min, Math.min(max, val)),
+  scale: (val, imin, imax, omin, omax) => (val-imin)*(omax-omin)/(imax-imin) + omin,
+  diff : (d, c) => (255-util.clamp(util.scale(d, 0, c, 0, 255), 0, 254)),
+  h2gray : (h, m) => (util.scale(h, 0, m, 0, 255)),
+  rgb2h: (r, g, b) => {
+    const v = (r << 16) + (g << 8) + b
+    r = null
+    if (v < 0x800000) r = v * 0.01
+    else if (v > 0x800000) r = (v - Math.pow(2, 24)) * 0.01
+    return r
+  },
+  h2rgb: h => {
+    const v = Math.floor((h + 10000) / 0.1)
+    return [(v & 0xff0000) >> 16, (v & 0x00ff00) >> 8, (v & 0x0000ff)]
+  },
+  parseurl: (url, p) => {
+    p = p || {}
+    const [u, q] = url.split("?")
+    q && q.split("&").forEach(s=>{
+      const [k, v] = s.split("=")
+      Object.assign(p, {[k]: v})
+    })
+    return p
+  }
+}
+
+// parse query parameters
+const params = util.parseurl(document.location.href, {t:"5.0", c:"15.0", m:"rb", lat:"36.42", lng:"136.07", z:"6"})
+
+// dif layer (10B - 5A)
+const l_dif510 = L.GridLayer.extend({
+  createTile: function(coords, done){
+    const til = L.DomUtil.create('img', 'leaflet-tile')
+    const cvs = L.DomUtil.create('canvas')
+    const ctx = cvs.getContext('2d')
+    Object.assign(ctx, {width: this.getTileSize().x, height: this.getTileSize().y})
+    Object.assign(cvs, {width: ctx.width, height: ctx.height})
+    Promise.all([
+      window.fetch(`https://cyberjapandata.gsi.go.jp/xyz/dem_png/${coords.z}/${coords.x}/${coords.y}.png`),
+      window.fetch(`https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/${coords.z}/${coords.x}/${coords.y}.png`)
+    ]).then(rs=>Promise.all(rs.map(r=>r.ok?r.blob():(()=>{throw new Error("request not ok")})())))
+      .then(bs=>Promise.all(bs.map(b=>window.createImageBitmap(b))))
+      .then(im=>{
+        if(im.length!=2||im[0].constructor.name!=im[1].constructor.name||im[0].constructor.name!="ImageBitmap"){throw new Error("bitmap error")}
+        const ds = im.map(img => {
+          const c = new OffscreenCanvas(img.width, img.height)
+          const x = c.getContext("2d")
+          x.drawImage(img, 0, 0)
+          img.close()
+          return x.getImageData(0, 0, c.width, c.height)
+        })
+        const [d0, d1] = [ds[0].data, ds[1].data]
+        const [fr, fb] = [params.m.includes("r"), params.m.includes("b")]
+        const [th, cl] = [parseFloat(params.t), parseFloat(params.c)]
+        const d  = new Uint8ClampedArray(4*ctx.width*ctx.height)
+        for(let os=0; os<d.length; os+=4){
+          const [h0, h1] = [util.rgb2h(d0[os], d0[os + 1], d0[os + 2]), util.rgb2h(d1[os], d1[os + 1], d1[os + 2])]
+          const g = util.h2gray(h1, 3776)
+          [d[os+0], d[os+1], d[os+2], d[os+3]] = [g, g, g, 255]
+//          d[os+0] = (fr&&h0!=null&&h1!=null&&th<(h1-h0))?util.diff(h1-h0-th, cl):0 // red  : dif -> plus
+//          d[os+1] = (h0===null||h1===null              )?                    128:0 // green: dif -> NA
+//          d[os+2] = (fb&&h0!=null&&h1!=null&&th<(h0-h1))?util.diff(h0-h1-th, cl):0 // blue : dif -> minus
+//          d[os+3] = (d[os+0]||d[os+1]||d[os+2]         )?                    255:0 // alpha
+        }
+        ctx.putImageData(new ImageData(d, ctx.width, ctx.height), 0, 0)
+        til.src = cvs.toDataURL()
+        done()
+      })
+      .catch(e=>{
+        let d = new Uint8ClampedArray(4*ctx.width*ctx.height)
+        d = d.map((a,i)=>(i%2)?(i%4===1?128:255):0) // (0,128,0,255) green
+        ctx.putImageData(new ImageData(d, ctx.width, ctx.height), 0, 0)
+        til.src = cvs.toDataURL()
+        done()
+      })
+    return til
+  }
+})
+
+// function for dem5a on tileload
+const dem5adtilontileload = function(e) {
+  window.fetch(L.Util.template("https://maps.gsi.go.jp/xyz/fgd_dem5a_area_dtil/{z}/{x}/{y}.geojson", e.coords))
+  .then(a => a.ok ? a.json() : null)
+  .then(geojson => {
+    if (!geojson || !this._map) return;
+    e.tile.geojson = L.geoJSON(geojson, {
+      //onEachFeature: function (feature, layer) { layer.on('click', e=>{console.log(e);layer.setStyle({color:"#FF0"})}); layer.bindPopup('<p>dem5a 作業年度 '+feature.properties["作業年度"]+'</p>'); },
+      onEachFeature: function (feature, layer) { layer.bindPopup('<p>dem5a 作業年度 '+feature.properties["作業年度"]+'</p>'); },
+      style: geojson => ({ weight: 1.5, color: "#888", opacity: 0.1 })
+    })
+    .addTo(this._map)
+  })
+}
+const dem5adtilontileunload = function(e) {
+  if (e.tile.geojson && this._map) this._map.removeLayer(e.tile.geojson)
+}
+
+// Base layers
+const map_base = {}
+map_base["z]GSI-pale" ] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {attribution: "国土地理院", minZoom: 4, maxNativeZoom: 18, maxZoom: 19})
+map_base["x]white"    ] = L.tileLayer("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAAA1BMVEX///+nxBvIAAAAH0lEQVQYGe3BAQ0AAADCIPunfg43YAAAAAAAAAAA5wIhAAAB9aK9BAAAAABJRU5ErkJggg==")
+map_base["c]newphoto" ] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', {attribution: "国土地理院", minZoom: 10, maxNativeZoom: 18})
+map_base["v]1988-1990"] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/gazo4/{z}/{x}/{y}.jpg', {attribution: "国土地理院", minZoom: 10, maxNativeZoom: 17})
+map_base["b]1984-1986"] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/gazo3/{z}/{x}/{y}.jpg', {attribution: "国土地理院", minZoom: 10, maxNativeZoom: 17})
+map_base["n]1979-1983"] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/gazo2/{z}/{x}/{y}.jpg', {attribution: "国土地理院", minZoom: 10, maxNativeZoom: 17})
+map_base["m]1974-1978"] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/gazo1/{z}/{x}/{y}.jpg', {attribution: "国土地理院", minZoom: 10, maxNativeZoom: 17})
+
+// Overlay layers
+const map_over = {}
+map_over["a]5agray"     ] = new l_dif510({minZoom: 4, maxNativeZoom:14, opacity:0.5})
+map_over["s]mesh3"      ] = L.rectangle([[0,0],[0,0]], {color: "#ff0000", weight: 1})
+map_over["d]dem10b"     ] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png',   {opacity: 0.8, attribution: "国土地理院", minZoom: 1, maxNativeZoom: 14})
+map_over["f]dem5a"      ] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/{z}/{x}/{y}.png', {opacity: 0.8, attribution: "国土地理院", minZoom: 1, maxNativeZoom: 15})
+map_over["g]dem5a(info)"] = L.tileLayer(L.Util.emptyImageUrl, { attribution: "国土地理院", minZoom:12, maxNativeZoom: 12, minNativeZoom: 12 }).on("tileload", dem5adtilontileload).on("tileunload", dem5adtilontileunload)
+map_over["h]dem5b"      ] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/dem5b_png/{z}/{x}/{y}.png', {opacity: 0.8, attribution: "国土地理院", minZoom: 1, maxNativeZoom: 15})
+map_over["j]dem5c"      ] = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/dem5c_png/{z}/{x}/{y}.png', {opacity: 0.8, attribution: "国土地理院", minZoom: 1, maxNativeZoom: 15})
+map_over["k]大規模盛土" ] = L.tileLayer('https://disaportaldata.gsi.go.jp/raster/daikiboumoritsuzouseichi/{z}/{x}/{y}.png', {opacity: 0.8, attribution: "国土地理院", minZoom: 1, maxNativeZoom: 15})
+
+// ctlInfo
+L.Control.Info = L.Control.extend({
+  onAdd: function(map) {
+    this._div = L.DomUtil.create('div', 'leaflet-control-layers leaflet-control-layers-expanded leaflet-control')
+    this.update()
+    return this._div
+  },
+  onRemove: map => {},
+  update: function(e) {
+    params.z = parseInt(map.getZoom(),10)
+    const l = e || map.getCenter()
+    const m = util.latlng2m3(l)
+    const n = util.m3tolatlng(m)
+    map_over["s]mesh3"].setBounds(L.latLngBounds({lat: n.lat, lng: n.lng}, { lat: n.lat + 1 / 120, lng: n.lng + 1 / 80 }))
+    params.lat = l.lat.toFixed(4)
+    params.lng = l.lng.toFixed(4)
+    const p = map.project(l, params.z)
+    p.x = Math.floor(p.x/256)
+    p.y = Math.floor(p.y/256)
+    this._div.innerHTML = `
+      lat: ${params.lat}<br />
+      lng: ${params.lng}<br />
+      zxy: ${params.z}/${p.x}/${p.y}<br />
+      mesh: ${m}`
+    const c = document.querySelector("#clip")
+    const u = window.location.href.split("?")[0] + "?" + (Object.keys(params).map(k=>`${k}=${params[k]}`).join("&"))
+    window.history.replaceState('', '', u)
+    try{ // click, then copy to clipboard
+      c.innerText = u
+      c.select()
+      document.execCommand("copy")
+    }catch(e){console.error(e)}
+  }
+})
+L.Control.info = opts => { return new L.Control.Info(opts) }
+
+// onkeydown
+document.onkeydown = function(e) {
+  if(e.ctrlKey||e.shiftKey||e.altKey||e.metaKey) return
+  if("zxcvbnm".includes(e.key)){
+    Object.keys(map_base).forEach(k=>{
+      map.removeLayer(map_base[k])
+      if (e.key===k[0]) map.addLayer(map_base[k])
+    })
+  }
+  if("asdfghjkl".includes(e.key)){
+    Object.keys(map_over).forEach(k=>{
+      if(e.key===k[0]){
+        if(map.hasLayer(map_over[k])){
+          map.removeLayer(map_over[k])
+        }else if(!map_over[k].options.minZoom || (map_over[k].options.minZoom <= map.getZoom())){
+          map.addLayer(map_over[k])
+        }
+      }
+    })
+  }
+}
+
+// View(Map and controls)
+const map = L.map('map', {
+    zoomControl: false,
+    center: [parseFloat(params.lat), parseFloat(params.lng)],
+    zoom: parseInt(params.z), minZoom: 4, maxZoom: 19,
+    layers: [map_base["z]GSI-pale"], map_over["a]5agray"]]
+})
+const ctlinfo = L.Control.info({ position: 'topright' }).addTo(map)
+
+L.control.zoom({ position: 'bottomright' }).addTo(map)
+L.control.layers(map_base, map_over, {collapsed: false}).addTo(map)
+map.on('click', e => {
+    const m = util.latlng2m3(e.latlng)
+    const p = util.m3tolatlng(m)
+    ctlinfo.update(e.latlng)
+})
+
+</script>
+</body>
+</html>
