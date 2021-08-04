@@ -94,10 +94,10 @@ const l_dif510 = L.GridLayer.extend({
         for(let os=0; os<d.length; os+=4){
           const [h0, h1] = [util.rgb2h(d0[os], d0[os + 1], d0[os + 2]), util.rgb2h(d1[os], d1[os + 1], d1[os + 2])]
           const g = util.h2gray(h1, 3776)
-          d[os+0] = g
-          d[os+1] = g
-          d[os+2] = g
-          d[os+3] = g?255:0
+          d[os+0] = h1?g:0
+          d[os+1] = h1?g:128
+          d[os+2] = h1?g:0
+          d[os+3] = 255
 //          d[os+0] = (fr&&h0!=null&&h1!=null&&th<(h1-h0))?util.diff(h1-h0-th, cl):0 // red  : dif -> plus
 //          d[os+1] = (h0===null||h1===null              )?                    128:0 // green: dif -> NA
 //          d[os+2] = (fb&&h0!=null&&h1!=null&&th<(h0-h1))?util.diff(h0-h1-th, cl):0 // blue : dif -> minus
