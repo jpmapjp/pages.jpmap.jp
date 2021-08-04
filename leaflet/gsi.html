@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Leaflet.js</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" crossorigin=""></script>
+<style>
+  body {padding: 0; margin: 0}
+  html, body, #map {height: 100%; width: 100%;}
+</style>
+</head>
+<body>
+<div id='map'></div>
+<script>
+const view = {
+  basemaps: {
+    "pale": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html#pale">国土地理院</a>' }),
+    "std" :  L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html#std">国土地理院</a>' })
+  },
+  map: null,
+  init: ()=> {
+    view.map = L.map('map',{
+      center: [35.715047,139.7483381],
+      zoom: 8, minZoom: 2, maxZoom: 14,
+      layers: [view.basemaps["pale"]]
+    });
+    L.control.scale().addTo(view.map);
+    view.map.on('click', function(e) {
+      const lat = (Math.round(e.latlng.lat * 10000)) /10000;
+      const lon = (Math.round(e.latlng.lng * 10000)) /10000;
+      console.log([lat, lon].join(","));
+    });
+  }
+};
+
+// leaflet.js layers
+// https://leafletjs.com/reference-1.7.1.html
+
+window.onload = ()=>{
+  view.init();
+}
+</script>
+</body>
+</html>
