@@ -3,6 +3,7 @@
 ## articles
 
 * <https://pages.jpmap.jp/articles/20210813-latitude.html>
+* <https://pages.jpmap.jp/articles/20210923-nightingale.html>
 
 ## leaflet
 

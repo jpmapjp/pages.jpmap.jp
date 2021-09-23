@@ -1,8 +1,6 @@
 # 2021/09/23 nightingale
 
-* データ可視化について学んでいると必ず話題になる、有名なナイチンゲールの図表というものがある。
-
-![Nightingale-mortality](https://en.wikipedia.org/wiki/File:Nightingale-mortality.jpg)
+* データ可視化について学んでいると必ず話題になる、有名な[ナイチンゲールの図表](https://en.wikipedia.org/wiki/File:Nightingale-mortality.jpg)というものがある。
 
 * ナイチンゲールはクリミア戦争の際に、兵士の死者原因などの統計情報をきちんと整理し、次の事実を示した。戦場での死者より劣悪な病棟環境に因る病死者が多いこと、ナイチンゲールらがそれらを改善したことで、兵士の死亡率が改善したこと。これらは上記の図表によって分かりやすく説明された、と言われている。そうした実績を以て、彼女は1859年にイギリス王立統計学会の初の女性メンバーに選ばれ、後にはアメリカ統計学会の名誉メンバーに選ばれた(Wikipedia情報)。
 
@@ -44,8 +42,6 @@ yyyy,mm,StrengthOfTheArmy,Deaths(ZymoticDeseases),Deaths(WoundAndInjuries),Death
 
 * ナイチンゲールについて調べていると、大変興味深い。出典がメモ出来ていないのだが、「偉い人はどうせデータなんて見ないのだから、分かりやすく図示したもので説得する」的なことを言っていたり、`Notes on Nursing (1859)`という著書では、下記のような言っている。
 
-```
-If you look into the reports of trials or accidents, and especially of suicides, or into the medical history of fatal cases, it is almost incredible how often the whole thing turns upon something which has happened because "he," or still oftener "she," "was not there." But it is still more incredible how often, how almost always this is accepted as a sufficient reason, a justification; why, the very fact of the thing having happened is the proof of its not being a justification. The person in charge was quite right not to be "_there_," he was called away for quite sufficient reason, or he was away for a daily recurring and unavoidable cause: yet no provision was made to supply his absence. The fault was not in his "being away," but in there being no management to supplement his "being away." When the sun is under a total eclipse or during his nightly absence, we light candles. But it would seem as if it did not occur to us that we must also supplement the person in charge of sick or of children, whether under an occasional eclipse or during a regular absence.
-```
+> If you look into the reports of trials or accidents, and especially of suicides, or into the medical history of fatal cases, it is almost incredible how often the whole thing turns upon something which has happened because "he," or still oftener "she," "was not there." But it is still more incredible how often, how almost always this is accepted as a sufficient reason, a justification; why, the very fact of the thing having happened is the proof of its not being a justification. The person in charge was quite right not to be "_there_," he was called away for quite sufficient reason, or he was away for a daily recurring and unavoidable cause: yet no provision was made to supply his absence. The fault was not in his "being away," but in there being no management to supplement his "being away." When the sun is under a total eclipse or during his nightly absence, we light candles. But it would seem as if it did not occur to us that we must also supplement the person in charge of sick or of children, whether under an occasional eclipse or during a regular absence.
 
 * 適当に訳すと、`医療事故が起きた時にはよく、"彼や彼女(※看護者)"が"居なかった"ことが原因として言われがちである。(中略)しかし、過ちは彼らの不在でなく、マネジメントの不在にある。日食の時や太陽の居ない夜に、我々はろうそくを灯して明かりを補うのと同様、病人や子供に対する看護者の不在をきちんと補うということが行われていない。` みたいな感じで、現場の人員に責任を負わすのでなく、それらを管理する監督者のやり方がまずいのだ、と。ナイチンゲールの部下になって働きたい、、と思ってしまう。
